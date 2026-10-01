@@ -2,7 +2,7 @@ import { supabase } from './supabase';
 import type { Entry, Format, Project, SavedStat, Task } from '../data/types';
 import type { DailyMeta, Habit, Ticks } from '../data/tracker';
 import { defaultHabits } from '../data/tracker';
-import { defaultFormats, defaultProjects } from '../data/mock';
+import { defaultFormats, defaultProjects, savedStats as defaultStats } from '../data/mock';
 
 /**
  * The persistence layer. Every function talks to Supabase as the signed-in
@@ -166,12 +166,15 @@ export async function seedDefaults(): Promise<void> {
     no_score: h.noScore ?? false,
     sort: i,
   }));
-  const [fe, he] = await Promise.all([
+  const statRows = defaultStats.map((st, i) => ({ user_id: uid, name: st.name, expr: st.expr, sort: i }));
+  const [fe, he, se] = await Promise.all([
     s.from('formats').insert(formatRows),
     s.from('habits').insert(habitRows),
+    s.from('saved_stats').insert(statRows),
   ]);
   if (fe.error) throw fe.error;
   if (he.error) throw he.error;
+  if (se.error) throw se.error;
 }
 
 /* ---------- writes ---------- */

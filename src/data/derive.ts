@@ -116,14 +116,28 @@ export function weekMinutes(list: Entry[]): { project: Project; minutes: number 
   }));
 }
 
-/** Finisher output trend (total reps). Older points are illustrative. */
-export const finisherTrend: { label: string; value: number }[] = [
-  { label: '9 Aug', value: 70 },
-  { label: '16 Aug', value: 75 },
-  { label: '23 Aug', value: 80 },
-  { label: '30 Aug', value: 78 },
-  { label: '6 Sep', value: 85 },
-  { label: '13 Sep', value: 90 },
-  { label: '20 Sep', value: 92 },
-  { label: '26 Sep', value: 100 },
-];
+/**
+ * Finisher output over time, computed from your entries. Each finisher entry
+ * becomes a point: total reps (rounds × reps) when both are present, else reps,
+ * else the logged minutes. Returns the most recent `limit` points, oldest first.
+ */
+export function finisherSeries(list: Entry[], limit = 12): { label: string; value: number }[] {
+  return list
+    .filter((e) => (e.formatKey ?? e.formatId) === 'finisher')
+    .sort((a, b) => +new Date(a.at) - +new Date(b.at))
+    .map((e) => {
+      const rounds = Number(e.values.rounds);
+      const reps = Number(e.values.reps);
+      const total =
+        Number.isFinite(rounds) && Number.isFinite(reps) && rounds && reps
+          ? rounds * reps
+          : Number.isFinite(reps) && reps
+            ? reps
+            : e.durationMin;
+      return {
+        label: new Date(e.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+        value: total,
+      };
+    })
+    .slice(-limit);
+}

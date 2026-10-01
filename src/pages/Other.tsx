@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { formats } from '../data/mock';
-import { TODAY, weekMinutes, formatDuration, finisherTrend, projectById } from '../data/derive';
+import { TODAY, weekMinutes, formatDuration, finisherSeries, projectById } from '../data/derive';
 import type { SavedStat, TaskStatus } from '../data/types';
 import { useApp } from '../state';
 import { evaluateStat } from '../lib/stats';
@@ -89,6 +89,7 @@ export function Stats() {
   const [name, setName] = useState('');
   const [expr, setExpr] = useState("count(sec.lab-attempt where rooted == true)");
   const ctx = useMemo(() => ({ entries, projects, formats }), [entries, projects]);
+  const finisher = useMemo(() => finisherSeries(entries), [entries]);
   const preview = useMemo(() => evaluateStat(expr, ctx), [expr, ctx]);
 
   const save = () => {
@@ -124,7 +125,13 @@ export function Stats() {
               <h2>Finisher output</h2>
               <span className="hint">Total reps per finisher</span>
             </div>
-            <LineChart data={finisherTrend} color="var(--p4)" unit=" reps" />
+            {finisher.length >= 2 ? (
+              <LineChart data={finisher} color="var(--p4)" unit=" reps" />
+            ) : (
+              <p className="hint" style={{ padding: '12px 0' }}>
+                Log a couple of finisher entries and the trend shows here.
+              </p>
+            )}
           </section>
           <section className="panel">
             <div className="panel-head">

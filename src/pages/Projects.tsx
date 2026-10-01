@@ -6,7 +6,7 @@ import {
   formatsFor,
   formatDuration,
   projectById,
-  finisherTrend,
+  finisherSeries,
 } from '../data/derive';
 import { useApp } from '../state';
 import { DayGroups } from '../components/Entries';
@@ -197,15 +197,23 @@ function Milestones() {
 }
 
 function ProjectStats({ name }: { name: string }) {
+  const { entries } = useApp();
   if (name === 'Body') {
+    const finisher = finisherSeries(entries);
     return (
       <div className="stack">
         <section className="panel">
           <div className="panel-head">
             <h2>Finisher output</h2>
-            <span className="hint">Total reps, clean-form finishers only</span>
+            <span className="hint">Total reps per finisher</span>
           </div>
-          <LineChart data={finisherTrend} color="var(--p4)" unit=" reps" />
+          {finisher.length >= 2 ? (
+            <LineChart data={finisher} color="var(--p4)" unit=" reps" />
+          ) : (
+            <p className="hint" style={{ padding: '12px 0' }}>
+              Log a couple of finisher entries and the trend shows here.
+            </p>
+          )}
         </section>
       </div>
     );
@@ -215,31 +223,9 @@ function ProjectStats({ name }: { name: string }) {
       <section className="panel">
         <div className="panel-head">
           <h2>Lab attempts by difficulty</h2>
+          <span className="hint">From your lab-attempt entries</span>
         </div>
-        <table className="field-list" style={{ display: 'table', width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr className="hint" style={{ textAlign: 'left' }}>
-              <th style={{ fontWeight: 600, paddingBottom: 8 }}>Difficulty</th>
-              <th style={{ fontWeight: 600, paddingBottom: 8 }}>Attempts</th>
-              <th style={{ fontWeight: 600, paddingBottom: 8 }}>Rooted</th>
-              <th style={{ fontWeight: 600, paddingBottom: 8 }}>Avg time</th>
-            </tr>
-          </thead>
-          <tbody>
-            {[
-              ['Easy', 1, 1, '2h'],
-              ['Medium', 1, 1, '2h 40m'],
-              ['Hard', 2, 1, '2h 48m'],
-            ].map(([d, a, r, t]) => (
-              <tr key={d as string} style={{ borderTop: '1px solid var(--line)' }}>
-                <td style={{ padding: '10px 0' }}>{d}</td>
-                <td style={{ fontVariantNumeric: 'tabular-nums' }}>{a}</td>
-                <td style={{ fontVariantNumeric: 'tabular-nums' }}>{r}</td>
-                <td style={{ fontVariantNumeric: 'tabular-nums' }}>{t}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <LabDifficulty entries={entries} />
       </section>
     );
   }
@@ -250,5 +236,44 @@ function ProjectStats({ name }: { name: string }) {
         <Link to="/stats">Create one on the Statistics page.</Link>
       </p>
     </div>
+  );
+}
+
+function LabDifficulty({ entries }: { entries: import('../data/types').Entry[] }) {
+  const labs = entries.filter((e) => (e.formatKey ?? e.formatId) === 'lab-attempt');
+  const order = ['Easy', 'Medium', 'Hard', 'Insane'];
+  const rows = order
+    .map((d) => {
+      const group = labs.filter((e) => e.values.difficulty === d);
+      if (!group.length) return null;
+      const rooted = group.filter((e) => e.values.rooted === true).length;
+      const avg = Math.round(group.reduce((s, e) => s + e.durationMin, 0) / group.length);
+      return { d, attempts: group.length, rooted, avg: formatDuration(avg) || '—' };
+    })
+    .filter(Boolean) as { d: string; attempts: number; rooted: number; avg: string }[];
+
+  if (!rows.length) return <p className="hint">Log a lab attempt and this fills in.</p>;
+
+  return (
+    <table className="field-list" style={{ display: 'table', width: '100%', borderCollapse: 'collapse' }}>
+      <thead>
+        <tr className="hint" style={{ textAlign: 'left' }}>
+          <th style={{ fontWeight: 600, paddingBottom: 8 }}>Difficulty</th>
+          <th style={{ fontWeight: 600, paddingBottom: 8 }}>Attempts</th>
+          <th style={{ fontWeight: 600, paddingBottom: 8 }}>Rooted</th>
+          <th style={{ fontWeight: 600, paddingBottom: 8 }}>Avg time</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((r) => (
+          <tr key={r.d} style={{ borderTop: '1px solid var(--line)' }}>
+            <td style={{ padding: '10px 0' }}>{r.d}</td>
+            <td style={{ fontVariantNumeric: 'tabular-nums' }}>{r.attempts}</td>
+            <td style={{ fontVariantNumeric: 'tabular-nums' }}>{r.rooted}</td>
+            <td style={{ fontVariantNumeric: 'tabular-nums' }}>{r.avg}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
