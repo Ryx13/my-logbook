@@ -78,6 +78,10 @@ interface AppState {
 
 const Ctx = createContext<AppState | null>(null);
 
+// Users whose data has already been loaded this page session (guards against
+// duplicate hydrate/seed from strict-mode double-mounts or repeated auth events).
+const hydratedUids = new Set<string>();
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const demo = !isSupabase;
 
@@ -137,24 +141,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (demo || !supabase) return;
-    supabase.auth.getSession().then(({ data }) => {
-      const user = data.session?.user;
-      if (user) {
-        db.setUid(user.id);
-        setEmail(user.email ?? null);
-        hydrate();
-      } else {
-        setReady(true);
-      }
-    });
+    // Supabase emits the current session on subscribe (INITIAL_SESSION), so this
+    // one listener covers both first load and later sign-in/out. A per-user guard
+    // makes sure hydrate (and its first-run seeding) runs exactly once per user,
+    // even with React's strict-mode double-mount.
     const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
       const user = session?.user;
       if (user) {
+        if (hydratedUids.has(user.id)) {
+          setEmail(user.email ?? null);
+          setReady(true);
+          return;
+        }
+        hydratedUids.add(user.id);
         db.setUid(user.id);
         setEmail(user.email ?? null);
         setReady(false);
         hydrate();
       } else {
+        hydratedUids.clear();
         setEmail(null);
         setReady(true);
       }

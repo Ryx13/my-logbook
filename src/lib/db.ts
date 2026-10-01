@@ -123,6 +123,12 @@ export async function loadAll(): Promise<Snapshot> {
 /* ---------- first-run seeding ---------- */
 export async function seedDefaults(): Promise<void> {
   const s = db();
+  // Idempotency guard: never seed if this user already has projects or habits.
+  const [{ count: pCount }, { count: hCount }] = await Promise.all([
+    s.from('projects').select('id', { count: 'exact', head: true }),
+    s.from('habits').select('id', { count: 'exact', head: true }),
+  ]);
+  if ((pCount ?? 0) > 0 || (hCount ?? 0) > 0) return;
   // Projects, keeping a slug → new id map so formats can point at them.
   const projectRows = defaultProjects.map((p, i) => ({
     user_id: uid,
