@@ -1,8 +1,12 @@
 import type { Entry, Format, Project } from './types';
 import { formats, projects } from './mock';
 
-/** The wireframe's fixed "now", so the sample data always looks recent. */
-export const TODAY = new Date('2026-09-27T18:00:00+02:00');
+/**
+ * "Now" for the app. Read once when the app loads, so a page open across
+ * midnight picks up the new day on its next reload. Everything date-related
+ * (Today, the tracker grids, the calendar, streaks) keys off this.
+ */
+export const TODAY = new Date();
 
 export const projectById = (id: string): Project | undefined => projects.find((p) => p.id === id);
 export const formatById = (id: string): Format | undefined => formats.find((f) => f.id === id);
